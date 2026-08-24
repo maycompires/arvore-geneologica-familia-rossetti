@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore para a Árvore Rossetti.
+//
+// O que elas permitem:
+//  - Qualquer pessoa com o link pode LER as fotos (não exige login).
+//  - Qualquer pessoa com o link pode ESCREVER uma foto, mas só dentro da
+//    coleção "fotos", só com os campos esperados (nome, foto, atualizadoEm),
+//    e com um limite de tamanho generoso para evitar que alguém publique
+//    um arquivo enorme sem querer (ou de propósito) e estoure a cota
+//    gratuita do projeto.
+//  - Ninguém pode apagar documentos, nem escrever em nenhuma outra coleção.
+//
+// Isso NÃO usa autenticação (login) — qualquer pessoa que tenha o link da
+// página pode adicionar/trocar fotos. Para uma árvore de família privada,
+// isso costuma ser suficiente; se um dia você quiser exigir login, dá para
+// evoluir estas regras depois.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /fotos/{personId} {
+      allow read: if true;
+
+      allow create, update: if
+        request.resource.data.keys().hasOnly(['nome', 'foto', 'atualizadoEm']) &&
+        request.resource.data.nome is string &&
+        request.resource.data.nome.size() < 120 &&
+        request.resource.data.foto is string &&
+        request.resource.data.foto.size() < 900000 &&
+        request.resource.data.foto.matches('^data:image/.*');
+
+      allow delete: if false;
+    }
+
+    // bloqueia qualquer outra coleção que não seja "fotos"
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

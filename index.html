@@ -1,0 +1,1294 @@
+<meta charset="UTF-8">
+<title>Árvore Rossetti</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Esta versão guarda as fotos da família no Firebase (Firestore), não como
+     um artefato do Claude. Veja GUIA-CONFIGURACAO-FIREBASE.md para ativar. -->
+<style>
+  :root{
+    --bg:#0a170f;
+    --bg-soil:#150d08;
+    --bark:#6b4a34;
+    --bark-deep:#3c2a1c;
+    --bark-light:#8a6242;
+    --leaf:#4f7d52;
+    --leaf-bright:#8fc283;
+    --leaf-deep:#2c4a30;
+    --gold:#d9a441;
+    --gold-bright:#f0c26a;
+    --gold-dim:#8a6b2f;
+    --parchment:#ece3cc;
+    --ink-soft:#a9b6a0;
+    --panel:rgba(15,30,19,0.82);
+    --panel-line:rgba(217,164,65,0.28);
+    --shadow:rgba(0,0,0,0.55);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);}
+  body{
+    font-family:'EB Garamond', serif;
+    color:var(--parchment);
+    position:relative;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+  }
+
+  /* ---------------- ambient forest ground (fixed, does not pan) ---------------- */
+  .atmosphere{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 70% 45% at 20% 15%, rgba(143,194,131,0.08), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 82% 10%, rgba(217,164,65,0.07), transparent 60%),
+      radial-gradient(ellipse 90% 60% at 50% 100%, rgba(60,42,28,0.55), transparent 65%),
+      linear-gradient(180deg, #0d1d13 0%, #0a170f 45%, #0b130c 100%);
+  }
+  .atmosphere .grain{
+    position:absolute; inset:0; opacity:0.05; mix-blend-mode:overlay;
+  }
+  .motes{ position:fixed; inset:0; z-index:1; pointer-events:none; overflow:hidden; }
+  .mote{
+    position:absolute; width:3px; height:3px; border-radius:50%;
+    background:var(--gold-bright);
+    box-shadow:0 0 6px 1px rgba(240,194,106,0.7);
+    opacity:0.55;
+    animation:drift 26s ease-in-out infinite;
+  }
+  @keyframes drift{
+    0%{ transform:translate(0,0); opacity:0; }
+    10%{ opacity:0.6; }
+    50%{ transform:translate(14px,-70px); }
+    90%{ opacity:0.5; }
+    100%{ transform:translate(-8px,-160px); opacity:0; }
+  }
+
+  /* ---------------- toolbar ---------------- */
+  .toolbar{
+    position:fixed; top:0; left:0; right:0; z-index:20;
+    display:flex; align-items:center; gap:18px;
+    padding:14px 22px;
+    background:var(--panel);
+    border-bottom:1px solid var(--panel-line);
+    backdrop-filter:blur(10px);
+    flex-wrap:wrap;
+  }
+  .brand{ display:flex; flex-direction:column; gap:1px; margin-right:6px; }
+  .brand .mark{
+    font-family:'Cinzel', serif; font-weight:600;
+    font-size:19px; letter-spacing:0.03em;
+    color:var(--gold-bright);
+    white-space:nowrap;
+  }
+  .brand .sub{
+    font-family:'Manrope', sans-serif; font-size:10.5px; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--ink-soft); opacity:0.75;
+  }
+  .search-wrap{ position:relative; flex:1 1 240px; max-width:320px; }
+  .search-wrap input{
+    width:100%;
+    font-family:'Manrope', sans-serif; font-size:13.5px;
+    background:rgba(10,23,15,0.6);
+    border:1px solid var(--panel-line);
+    color:var(--parchment);
+    padding:9px 14px 9px 32px;
+    border-radius:8px;
+    outline:none;
+  }
+  .search-wrap input::placeholder{ color:var(--ink-soft); opacity:0.65; }
+  .search-wrap input:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(217,164,65,0.15); }
+  .search-wrap::before{
+    content:"🔎"; position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    font-size:12px; opacity:0.7;
+  }
+  .search-count{
+    font-family:'Manrope', sans-serif; font-size:11px; color:var(--gold-bright);
+    min-width:80px;
+  }
+  .zoom-controls{ display:flex; align-items:center; gap:6px; margin-left:auto; }
+  .zoom-controls button{
+    width:32px; height:32px;
+    border-radius:7px;
+    border:1px solid var(--panel-line);
+    background:rgba(10,23,15,0.55);
+    color:var(--parchment);
+    font-family:'Manrope', sans-serif; font-size:15px; font-weight:600;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .18s, border-color .18s;
+  }
+  .zoom-controls button:hover, .zoom-controls button:focus-visible{
+    background:rgba(217,164,65,0.16); border-color:var(--gold); outline:none;
+  }
+  .zoom-controls .fit-btn{ width:auto; padding:0 12px; font-size:11.5px; letter-spacing:0.04em; }
+  .stats-pill{
+    font-family:'Manrope', sans-serif; font-size:11px; letter-spacing:0.03em;
+    color:var(--gold-bright);
+    border:1px solid var(--panel-line);
+    padding:6px 14px; border-radius:999px;
+    background:rgba(217,164,65,0.06);
+    white-space:nowrap;
+  }
+  .legend{
+    position:fixed; left:22px; bottom:18px; z-index:20;
+    font-family:'Manrope', sans-serif; font-size:11.5px;
+    color:var(--ink-soft);
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    padding:8px 14px; border-radius:9px;
+    max-width:280px; line-height:1.5;
+    backdrop-filter:blur(8px);
+  }
+  .legend b{ color:var(--gold-bright); font-weight:600; }
+  .hint{
+    position:fixed; right:22px; bottom:18px; z-index:20;
+    font-family:'Cormorant Garamond', serif; font-style:italic; font-size:13px;
+    color:var(--ink-soft); opacity:0.75; text-align:right;
+    max-width:240px;
+  }
+
+  /* ---------------- stage / canvas (pan & zoom) ---------------- */
+  .stage{
+    position:fixed; inset:0; z-index:2;
+    overflow:hidden;
+    cursor:grab;
+    touch-action:none; /* o próprio JS cuida de arrastar e do pinça-para-zoom */
+  }
+  .stage.dragging{ cursor:grabbing; }
+  .canvas{
+    position:absolute; top:0; left:0;
+    transform-origin:0 0;
+    opacity:0;
+  }
+  .canvas.ready{ opacity:1; transition:opacity .7s ease; }
+  .canvas.animated{ transition:transform .35s cubic-bezier(.2,.7,.3,1), opacity .7s ease; }
+  svg.edges{ position:absolute; top:0; left:0; overflow:visible; }
+
+  /* ---------------- nodes ---------------- */
+  .node{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    display:flex; align-items:center; gap:8px;
+    cursor:pointer;
+    user-select:none;
+    padding:5px 12px 5px 5px;
+    border-radius:999px;
+    border:1px solid transparent;
+    background:rgba(10,20,13,0.0);
+    transition:background .2s, border-color .2s, transform .15s;
+    white-space:nowrap;
+  }
+  .node:hover, .node:focus-visible{
+    background:rgba(217,164,65,0.12);
+    border-color:var(--panel-line);
+    outline:none;
+  }
+  .node.dim{ opacity:0.16; }
+  .node.match{
+    background:rgba(217,164,65,0.22);
+    border-color:var(--gold);
+    box-shadow:0 0 0 4px rgba(217,164,65,0.12);
+  }
+  .avatar{
+    border-radius:50%; flex-shrink:0;
+    background-size:cover; background-position:center;
+    display:flex; align-items:center; justify-content:center;
+    border:1.5px solid rgba(236,227,204,0.35);
+    font-family:'Cinzel', serif; font-weight:600;
+    color:rgba(236,227,204,0.9);
+  }
+  .avatar.has-photo .init{ display:none; }
+  .name{ letter-spacing:0.01em; }
+  .voce-tag{
+    font-family:'Manrope', sans-serif; font-style:normal; font-size:10px;
+    color:var(--bg); background:var(--gold-bright);
+    padding:1px 8px; border-radius:999px; margin-left:4px;
+    vertical-align:middle;
+  }
+  .leaf-mark{
+    width:9px; height:9px; margin-right:1px; flex-shrink:0;
+    background:var(--leaf-bright);
+    clip-path:polygon(50% 0%, 90% 35%, 65% 100%, 35% 100%, 10% 35%);
+    opacity:0.85;
+  }
+  mark{ background:rgba(217,164,65,0.55); color:#1a1108; border-radius:3px; padding:0 2px; }
+
+  /* depth 1 — the nine boughs */
+  .node.bough{ padding:9px 20px 9px 8px; }
+  .node.bough .avatar{ width:40px; height:40px; font-size:14px; }
+  .node.bough .name{ font-family:'Cinzel', serif; font-weight:600; font-size:19px; color:var(--gold-bright); }
+
+  /* depth 2 */
+  .node.limb .avatar{ width:30px; height:30px; font-size:11.5px; }
+  .node.limb .name{ font-family:'EB Garamond', serif; font-weight:500; font-size:17.5px; color:var(--parchment); }
+
+  /* depth 3+ interior */
+  .node.twig .avatar{ width:24px; height:24px; font-size:10px; }
+  .node.twig .name{ font-family:'EB Garamond', serif; font-size:16px; color:#cdd8c4; }
+
+  /* leaves (no descendants) */
+  .node.leaf-node .avatar{ width:20px; height:20px; font-size:8.5px; }
+  .node.leaf-node .name{ font-family:'Cormorant Garamond', serif; font-style:italic; font-size:15px; color:var(--ink-soft); }
+
+  /* ---------------- root plaque ---------------- */
+  .root-plaque{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    padding:22px 34px;
+    border:1px solid var(--gold-dim);
+    border-radius:6px;
+    background:linear-gradient(180deg, rgba(217,164,65,0.10), rgba(60,42,28,0.35));
+    box-shadow:0 18px 44px var(--shadow), inset 0 0 0 1px rgba(217,164,65,0.14);
+    white-space:nowrap;
+    z-index:3;
+  }
+  .root-plaque .eyebrow{
+    font-family:'Manrope', sans-serif; font-size:10px; letter-spacing:0.28em;
+    text-transform:uppercase; color:var(--gold-dim);
+  }
+  .root-couple{ display:flex; align-items:center; gap:14px; }
+  .root-couple .amp{ color:var(--gold); font-family:'Cormorant Garamond', serif; font-style:italic; font-size:19px; }
+  .root-person{
+    display:flex; align-items:center; gap:9px; cursor:pointer;
+    padding:4px 8px 4px 4px; border-radius:20px; transition:background .2s;
+  }
+  .root-person:hover, .root-person:focus-visible{ background:rgba(217,164,65,0.14); outline:none; }
+  .root-person .avatar{ width:46px; height:46px; font-size:16px; }
+  .root-person .name{ font-family:'Cinzel', serif; font-weight:600; font-size:18px; color:var(--parchment); }
+
+  /* ---------------- lightbox ---------------- */
+  .lightbox{
+    position:fixed; inset:0; z-index:80;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+    background:rgba(5,10,7,0.78);
+    backdrop-filter:blur(3px);
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+  }
+  .lightbox.open{ opacity:1; pointer-events:auto; }
+  .lightbox-card{
+    position:relative;
+    background:linear-gradient(180deg, #0f2015, #0a170f);
+    border:1px solid var(--gold-dim);
+    border-radius:16px;
+    padding:44px 46px 34px;
+    text-align:center; max-width:92vw;
+    box-shadow:0 30px 80px rgba(0,0,0,0.6);
+    transform:scale(0.94); transition:transform .25s ease;
+  }
+  .lightbox.open .lightbox-card{ transform:scale(1); }
+  .lightbox-close{
+    position:absolute; top:10px; right:14px; background:none; border:none;
+    color:var(--ink-soft); font-size:28px; line-height:1; cursor:pointer;
+  }
+  .lightbox-close:hover{ color:var(--gold); }
+  .lightbox-avatar-ring{
+    width:190px; height:190px; border-radius:50%; padding:5px; margin:0 auto 20px;
+    background:conic-gradient(from 180deg, var(--gold-dim), var(--gold-bright), var(--leaf), var(--gold-dim));
+  }
+  .lightbox-avatar{
+    width:100%; height:100%; border-radius:50%;
+    background-size:cover; background-position:center;
+    display:flex; align-items:center; justify-content:center;
+    border:4px solid #0a170f;
+    font-family:'Cinzel', serif; font-size:52px; font-weight:600; color:rgba(236,227,204,0.9);
+  }
+  .lightbox-avatar.has-photo .init{ display:none; }
+  .lightbox-name{
+    font-family:'Cinzel', serif; font-size:clamp(19px,3vw,25px); color:var(--gold-bright);
+    margin:0 0 20px; letter-spacing:0.01em;
+  }
+  .lightbox-upload{
+    font-family:'Manrope', sans-serif; font-size:13.5px; font-weight:600;
+    color:var(--gold-bright); background:rgba(217,164,65,0.10); border:1px solid var(--panel-line);
+    padding:10px 24px; border-radius:999px; cursor:pointer; transition:background .2s, border-color .2s;
+  }
+  .lightbox-upload:hover{ background:rgba(217,164,65,0.2); border-color:var(--gold); }
+  .lightbox-upload:disabled{ opacity:0.55; cursor:default; }
+  .lightbox-ascendencia{
+    margin:16px 0 0; padding:12px 18px 0; border-top:1px solid var(--panel-line);
+    font-family:'Cormorant Garamond', serif; font-style:italic; font-size:15.5px;
+    line-height:1.45; color:var(--ink-soft); opacity:0.92; max-width:36ch;
+  }
+  .lightbox-ascendencia b{
+    font-style:normal; font-weight:600; color:var(--gold-bright);
+  }
+  .lightbox-ascendencia.hide{ display:none; }
+  .lightbox-hint{
+    margin:12px 0 0; font-family:'Cormorant Garamond', serif; font-style:italic; font-size:12px;
+    color:var(--ink-soft); opacity:0.7;
+  }
+  .lightbox-status{
+    margin:14px 0 0; min-height:15px;
+    font-family:'Manrope', sans-serif; font-size:12.5px; font-weight:600;
+    color:var(--gold-bright); opacity:0; transition:opacity .25s ease;
+  }
+  .lightbox-status.show{ opacity:1; }
+  .lightbox-status.warn{ color:var(--wine-bright, #c98a8a); }
+  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+
+  .fb-banner{
+    display:none;
+    flex:1 1 100%; order:5;
+    font-family:'Manrope', sans-serif; font-size:12px; line-height:1.5;
+    color:var(--gold-bright);
+    background:rgba(217,164,65,0.10);
+    border:1px solid var(--panel-line);
+    border-radius:8px;
+    padding:8px 14px;
+    text-align:center;
+  }
+  .fb-banner.show{ display:block; }
+  .fb-banner.erro{ background:rgba(190,70,70,0.16); color:#f0a9a9; border-color:rgba(190,70,70,0.35); }
+
+  @media (max-width: 640px){
+    .hint{ display:none; }
+    .legend{ left:14px; right:14px; max-width:none; font-size:11px; padding:7px 12px; }
+    .toolbar{ gap:8px; padding:10px 12px; }
+    .brand .mark{ font-size:16px; }
+    .search-wrap{ flex:1 1 100%; max-width:none; order:3; }
+    .stats-pill{ order:4; font-size:10px; padding:5px 11px; }
+    .zoom-controls{ order:2; margin-left:auto; }
+    .zoom-controls button{ width:38px; height:38px; font-size:17px; }
+    .zoom-controls .fit-btn{ width:auto; padding:0 10px; font-size:11px; }
+  }
+  @media (pointer: coarse){
+    /* alvos de toque maiores para dedo, sem mudar a leitura no desktop */
+    .node{ padding:7px 14px 7px 6px; }
+    .zoom-controls button{ width:40px; height:40px; }
+  }
+</style>
+
+<div class="atmosphere"><div class="grain"></div></div>
+<div class="motes" id="motes"></div>
+
+<header class="toolbar">
+  <div class="brand">
+    <span class="mark">Família Rossetti</span>
+    <span class="sub">Árvore genealógica</span>
+  </div>
+  <div class="search-wrap">
+    <input type="text" id="busca" placeholder="Buscar um nome…" autocomplete="off" aria-label="Buscar um nome na árvore">
+  </div>
+  <span class="search-count" id="searchCount"></span>
+  <span class="stats-pill" id="stats">carregando…</span>
+  <div class="zoom-controls">
+    <button id="zoomOut" aria-label="Diminuir zoom">–</button>
+    <button id="zoomIn" aria-label="Aumentar zoom">+</button>
+    <button id="zoomFit" class="fit-btn">Ver árvore inteira</button>
+  </div>
+  <p class="fb-banner" id="fbBanner"></p>
+</header>
+
+<div class="legend"><b>🌳 Como ler:</b> a raiz fica na base do tronco; cada geração nasce um nível mais alto na copa. <span class="leaf-mark" style="display:inline-block;vertical-align:middle;"></span> marca quem ainda não tem descendência registrada.</div>
+<div class="hint">arraste para mover · roda do mouse para zoom<br>toque em qualquer nome para ver ou adicionar uma foto</div>
+
+<main class="stage" id="stage">
+  <div class="canvas" id="canvas"></div>
+</main>
+
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Fechar">&times;</button>
+    <div class="lightbox-avatar-ring">
+      <div class="lightbox-avatar" id="lightboxAvatar">
+        <span class="init" id="lightboxInitials"></span>
+      </div>
+    </div>
+    <p class="lightbox-name" id="lightboxName"></p>
+    <button class="lightbox-upload" id="lightboxUpload">📷 Adicionar / trocar foto</button>
+    <p class="lightbox-ascendencia" id="lightboxAscendencia"></p>
+    <p class="lightbox-status" id="lightboxStatus" aria-live="polite"></p>
+    <p class="lightbox-hint" id="lightboxHint">a foto fica visível para qualquer pessoa que abrir este link</p>
+  </div>
+</div>
+<input type="file" id="fileInput" accept="image/*" class="sr-only">
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+/* ======================= CONFIGURAÇÃO DO FIREBASE =======================
+   Troque os valores abaixo pelos do SEU projeto Firebase — veja o passo a
+   passo em GUIA-CONFIGURACAO-FIREBASE.md (arquivo que acompanha este HTML).
+   Sem isso preenchido, a árvore funciona normalmente, só que as fotos não
+   ficam compartilhadas entre as pessoas que abrirem o link. */
+const firebaseConfig = {
+  apiKey: "AIzaSyAo6xGd7ZgGASxImzI588pAr5n3tXbgpxQ",
+  authDomain: "arvore-rossetti-d89e2.firebaseapp.com",
+  projectId: "arvore-rossetti-d89e2",
+  storageBucket: "arvore-rossetti-d89e2.firebasestorage.app",
+  messagingSenderId: "421415947190",
+  appId: "1:421415947190:web:da74960386fd462a134f17"
+};
+
+let editandoId = null;
+let editandoNome = null;
+
+/* ======================= DADOS DA FAMÍLIA (inalterados) ======================= */
+const familia = [
+  {
+    nome: "Ângelo",
+    filhos: [
+      { nome: "José Adair", filhos: [
+        { nome: "Adilson Antônio", filhos: ["Maria Antônia","Ademar Jeferson"] },
+        { nome: "Clarice de Fátima", filhos: ["Cibelli"] },
+        { nome: "Edson Luiz", filhos: ["Pedro Miguel"] },
+        { nome: "Adriano César", filhos: ["Kauã"] },
+        { nome: "Andréia Maria", filhos: ["Catarina"] },
+      ]},
+      { nome: "Sérgio", filhos: [
+        { nome: "Dagmar", filhos: ["Angeline","Emily Vitória","Arthur Emanuell"] },
+        { nome: "Regiane", filhos: [] },
+      ]},
+      { nome: "Nilse", filhos: [
+        { nome: "Mariangela", filhos: ["Antonela"] },
+        { nome: "Leonice", filhos: ["Sara"] },
+      ]},
+      { nome: "Volmir", filhos: [
+        { nome: "Aristóteles", filhos: ["Beatriz"] },
+        { nome: "Mosara", filhos: [] },
+      ]},
+      { nome: "Pedro Idílio", filhos: ["Anajuly Fátima","Pedro Henrick"] },
+    ]
+  },
+  {
+    nome: "Oliva",
+    filhos: [
+      { nome: "Marilene", filhos: ["Maycom Roberto","Gisele Karine"] },
+      { nome: "Vanderlei", filhos: ["William","João Pedro"] },
+      { nome: "Marli", filhos: ["Érica"] },
+    ]
+  },
+  {
+    nome: "Fiorindo",
+    filhos: [
+      { nome: "Leonides", filhos: ["Matheus"] },
+      { nome: "Leonir", filhos: ["Thaynan"] },
+      { nome: "Leonice", filhos: ["Érica","Isadora"] },
+      { nome: "Lidiane", filhos: ["Heitor","Fiorela"] },
+    ]
+  },
+  {
+    nome: "Maria",
+    filhos: [
+      { nome: "Francisco Dinei", filhos: ["Vinícius","Wagner"] },
+      { nome: "Fátima Inês", filhos: [
+        { nome: "Guilherme", filhos: ["Leon"] },
+        "Julia",
+      ]},
+      { nome: "Neusa Salete", filhos: [
+        { nome: "Neli", filhos: ["Teo","Lara"] },
+        { nome: "Micheli", filhos: ["Jasmin","Vitor"] },
+        "Jonara",
+        "Bruna",
+      ]},
+      { nome: "Edemir José", filhos: [] },
+      { nome: "Marta Regina", filhos: ["Gabriel"] },
+    ]
+  },
+  { nome: "Regina", filhos: [] },
+  {
+    nome: "Irma",
+    filhos: [
+      { nome: "Mauro", filhos: ["Marcos Vinícius"] },
+      "Marlo Luiz",
+    ]
+  },
+  {
+    nome: "Ires",
+    filhos: [
+      { nome: "Sônia", filhos: ["Maria Clara"] },
+      { nome: "Sandro", filhos: ["Gael"] },
+    ]
+  },
+  { nome: "Nilce", filhos: ["Amarildo"] },
+  {
+    nome: "Domingos Francisco",
+    filhos: [
+      { nome: "Renato", filhos: ["Gustavo"] },
+      "Rodrigo",
+    ]
+  },
+];
+
+/* ======================= AVATAR (cor + iniciais) ======================= */
+const PALETA = ["#3c5a45","#6b3a44","#4a4a2f","#38506b","#5c4630","#4f3a5c","#345349","#5a3a3a","#6b4a34"];
+function hash(str){ let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))>>>0; return h; }
+function corAvatar(nome){ return PALETA[hash(nome) % PALETA.length]; }
+function iniciais(nome){
+  const p = nome.trim().split(/\s+/);
+  return ((p[0]?p[0][0]:"") + (p.length>1?p[p.length-1][0]:"")).toUpperCase();
+}
+
+/* ======================= ASCENDÊNCIA (mostrada ao abrir a foto de alguém) ======================= */
+/* gênero de cada pessoa, para escrever "Filho/Filha", "Neto/Neta" etc. corretamente;
+   quando não temos certeza suficiente, o nome fica de fora e o texto usa a forma
+   neutra "Filho(a)" — é só avisar para eu corrigir um nome específico */
+const GENERO = {
+  "Pedro Rossetti":"m", "Verônica Rossetti":"f",
+  "Ângelo":"m", "José Adair":"m", "Adilson Antônio":"m", "Maria Antônia":"f", "Ademar Jeferson":"m",
+  "Clarice de Fátima":"f", "Cibelli":"f", "Edson Luiz":"m", "Pedro Miguel":"m", "Adriano César":"m",
+  "Kauã":"m", "Andréia Maria":"f", "Catarina":"f", "Sérgio":"m", "Dagmar":"f", "Angeline":"f",
+  "Emily Vitória":"f", "Arthur Emanuell":"m", "Regiane":"f", "Nilse":"f", "Mariangela":"f",
+  "Antonela":"f", "Leonice":"f", "Sara":"f", "Volmir":"m", "Aristóteles":"m", "Beatriz":"f",
+  "Mosara":"f", "Pedro Idílio":"m", "Anajuly Fátima":"f", "Pedro Henrick":"m",
+  "Oliva":"f", "Marilene":"f", "Maycom Roberto":"m", "Gisele Karine":"f", "Vanderlei":"m",
+  "William":"m", "João Pedro":"m", "Marli":"f", "Érica":"f",
+  "Fiorindo":"m", "Leonides":"m", "Matheus":"m", "Thaynan":"m", "Isadora":"f", "Lidiane":"f",
+  "Heitor":"m", "Fiorela":"f",
+  "Maria":"f", "Francisco Dinei":"m", "Vinícius":"m", "Wagner":"m", "Fátima Inês":"f",
+  "Guilherme":"m", "Leon":"m", "Julia":"f", "Neusa Salete":"f", "Neli":"f", "Teo":"m", "Lara":"f",
+  "Micheli":"f", "Jasmin":"f", "Vitor":"m", "Jonara":"f", "Bruna":"f", "Edemir José":"m",
+  "Marta Regina":"f", "Gabriel":"m",
+  "Regina":"f",
+  "Irma":"f", "Mauro":"m", "Marcos Vinícius":"m", "Marlo Luiz":"m",
+  "Ires":"f", "Sônia":"f", "Maria Clara":"f", "Sandro":"m", "Gael":"m",
+  "Nilce":"f", "Amarildo":"m",
+  "Domingos Francisco":"m", "Renato":"m", "Gustavo":"m", "Rodrigo":"m",
+};
+const TERMOS_GERACAO = {
+  m: ["", "Filho", "Neto", "Bisneto", "Trineto", "Tataraneto"],
+  f: ["", "Filha", "Neta", "Bisneta", "Trineta", "Tataraneta"],
+  n: ["", "Filho(a)", "Neto(a)", "Bisneto(a)", "Trineto(a)", "Tataraneto(a)"],
+};
+function ascendenciaDe(node){
+  if(!node || !node.parent) return null; /* é o próprio casal-raiz — sem ascendência a mostrar */
+  const elos = [];
+  let cur = node, k = 0;
+  while(cur.parent){
+    k++;
+    elos.push({ k, nome: cur.parent === treeRoot ? "Pedro e Verônica Rossetti" : cur.parent.name });
+    cur = cur.parent;
+  }
+  const termos = TERMOS_GERACAO[GENERO[node.name]] || TERMOS_GERACAO.n;
+  return elos.map(e => `${termos[Math.min(e.k, termos.length-1)]} de <b>${e.nome}</b>`).join(", ");
+}
+function mix(hexA, hexB, t){
+  const a=[1,3,5].map(i=>parseInt(hexA.substr(i,2),16));
+  const b=[1,3,5].map(i=>parseInt(hexB.substr(i,2),16));
+  const c=a.map((v,i)=>Math.round(v+(b[i]-v)*t));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+/* ======================= CONSTRUÇÃO DA ÁRVORE ======================= */
+function toNode(item){
+  if (typeof item === "string") return { name: item, children: [] };
+  return { name: item.nome, children: (item.filhos || []).map(toNode) };
+}
+const treeRoot = { name: "Pedro & Verônica Rossetti", children: familia.map(toNode) };
+
+function assignIds(node, path){
+  node.id = path;
+  node.children.forEach((c,i)=>assignIds(c, path+"."+i));
+}
+assignIds(treeRoot, "n");
+
+let maxDepth = 0;
+function computeDepth(node, d){ node.depth = d; maxDepth = Math.max(maxDepth, d); node.children.forEach(c=>computeDepth(c,d+1)); }
+computeDepth(treeRoot, 0);
+
+/* linhas verticais: tronco mais longo entre raiz e os 9 ramos, depois entrenós regulares */
+const ROW_GAP = 176;
+const TRUNK_GAP = 240;
+const TOP_MARGIN = 90;
+const PLAQUE_OFFSET = 172; /* distância do ponto de convergência dos galhos até o centro da placa dos bisavós */
+const PLAQUE_HALF_H = 60;
+const BOTTOM_MARGIN = PLAQUE_OFFSET + PLAQUE_HALF_H + 40;
+const SIDE_MARGIN = 90;
+const LEAF_W = 60;
+
+/* estilo por profundidade — precisa existir antes do cálculo de largura,
+   pois cada rótulo reserva espaço suficiente para não se sobrepor ao vizinho */
+function classForDepth(depth, isLeaf){
+  if(depth === 1) return "bough";
+  if(depth === 2) return "limb";
+  if(isLeaf) return "leaf-node";
+  return "twig";
+}
+function avatarSize(depth, isLeaf){
+  if(depth === 1) return 40;
+  if(depth === 2) return 30;
+  if(isLeaf) return 20;
+  return 24;
+}
+function charWidthFor(node){
+  if(node.depth === 1) return 11.6;
+  if(node.depth === 2) return node.children.length ? 9.6 : 8.4;
+  return node.children.length ? 8.8 : 7.8;
+}
+function estimateOwnUnits(node){
+  const isLeaf = node.children.length === 0;
+  const overhead = avatarSize(node.depth, isLeaf) + 40 + (/Maycom/i.test(node.name) ? 46 : 0) + (isLeaf ? 12 : 0);
+  const px = overhead + node.name.length * charWidthFor(node);
+  return px / LEAF_W + 0.55;
+}
+function computeWeight(node){
+  const own = estimateOwnUnits(node);
+  if(!node.children.length){ node.weight = Math.max(own, 1); return node.weight; }
+  let w = 0; node.children.forEach(c => w += computeWeight(c));
+  node.weight = Math.max(w, own);
+  return node.weight;
+}
+computeWeight(treeRoot);
+
+const rowY = new Array(maxDepth+1);
+rowY[maxDepth] = TOP_MARGIN;
+for(let d = maxDepth-1; d >= 0; d--){
+  rowY[d] = rowY[d+1] + (d === 0 ? TRUNK_GAP : ROW_GAP);
+}
+const canvasHeight = rowY[0] + BOTTOM_MARGIN;
+const totalWidth = treeRoot.weight * LEAF_W;
+const canvasWidth = totalWidth + SIDE_MARGIN * 2;
+
+function jitterFor(node){
+  const h = hash(node.id + node.name);
+  const signY = (h % 2 === 0) ? 1 : -1;
+  const signX = ((h >> 3) % 2 === 0) ? 1 : -1;
+  const jy = node.depth <= 1 ? 0 : signY * lerp(3, 16, (node.depth-1)/Math.max(maxDepth-1,1)) * ((h%7)/7);
+  const jx = node.depth <= 1 ? 0 : signX * lerp(0, 12, (node.depth-1)/Math.max(maxDepth-1,1)) * ((h%5)/5);
+  return { jx, jy };
+}
+
+function layout(node, x0, x1){
+  node.cx = (x0 + x1) / 2 + SIDE_MARGIN;
+  node.baseY = rowY[node.depth];
+  const { jx, jy } = jitterFor(node);
+  node.cx += jx;
+  node.y = node.baseY + jy;
+  if(node.children.length){
+    const childrenWeight = node.children.reduce((s,c) => s + c.weight, 0);
+    const usedWidth = (childrenWeight / node.weight) * (x1 - x0);
+    let cursor = x0 + ((x1 - x0) - usedWidth) / 2;
+    node.children.forEach(c => {
+      const w = (c.weight / node.weight) * (x1 - x0);
+      layout(c, cursor, cursor + w);
+      cursor += w;
+    });
+  }
+}
+layout(treeRoot, 0, totalWidth);
+
+const allNodes = [];
+const edges = [];
+(function collect(node, parent){
+  node.parent = parent;
+  allNodes.push(node);
+  if(parent) edges.push([parent, node]);
+  node.children.forEach(c => collect(c, node));
+})(treeRoot, null);
+const nodeById = {};
+allNodes.forEach(n => { nodeById[n.id] = n; });
+
+let totalPessoas = 2; // Pedro + Verônica
+allNodes.forEach(n => { if(n !== treeRoot) totalPessoas++; });
+document.getElementById("stats").textContent = `${totalPessoas} pessoas · 9 ramos · ${maxDepth} gerações`;
+
+/* ======================= RENDER: SVG (galhos) ======================= */
+const canvas = document.getElementById("canvas");
+canvas.style.width = canvasWidth + "px";
+canvas.style.height = canvasHeight + "px";
+
+const svgNS = "http://www.w3.org/2000/svg";
+const svg = document.createElementNS(svgNS, "svg");
+svg.setAttribute("class", "edges");
+svg.setAttribute("width", canvasWidth);
+svg.setAttribute("height", canvasHeight);
+svg.setAttribute("viewBox", `0 0 ${canvasWidth} ${canvasHeight}`);
+svg.setAttribute("role", "img");
+svg.setAttribute("aria-label", "Árvore genealógica da Família Rossetti: da raiz na base aos galhos e folhas no topo");
+canvas.appendChild(svg);
+
+function edgeColor(depth){
+  const t = depth / maxDepth;
+  if(t < 0.55) return mix("#4a3320", "#4f7d52", t/0.55);
+  return mix("#4f7d52", "#d9a441", (t-0.55)/0.45);
+}
+function edgeWidth(depth){ return lerp(15, 1.6, depth/maxDepth); }
+
+const edgeGeoms = [];
+edges.forEach(([p,c]) => {
+  const x1=p.cx, y1=p.y, x2=c.cx, y2=c.y;
+  const dy = (y1-y2)*0.55;
+  const jitter = (hash(c.id) % 21) - 10;
+  const c1x = x1 + jitter*0.5, c1y = y1 - dy;
+  const c2x = x2 - jitter*0.5, c2y = y2 + dy;
+  const path = document.createElementNS(svgNS, "path");
+  path.setAttribute("d", `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", edgeColor(c.depth));
+  path.setAttribute("stroke-width", edgeWidth(c.depth).toFixed(2));
+  path.setAttribute("stroke-linecap", "round");
+  svg.appendChild(path);
+  edgeGeoms.push({ x1,y1,c1x,c1y,c2x,c2y,x2,y2, depth:c.depth, id:c.id });
+});
+
+/* folhagem decorativa: pequenas folhas soltas ao longo dos galhos, sempre
+   desenhadas atrás dos nomes (o SVG inteiro fica abaixo dos cartões de texto
+   no HTML) e só no meio de cada galho — nunca perto das pontas onde os nomes
+   ficam — para dar textura de árvore sem atrapalhar a leitura */
+function bezierPoint(x1,y1,c1x,c1y,c2x,c2y,x2,y2,t){
+  const mt = 1-t;
+  const x = mt*mt*mt*x1 + 3*mt*mt*t*c1x + 3*mt*t*t*c2x + t*t*t*x2;
+  const y = mt*mt*mt*y1 + 3*mt*mt*t*c1y + 3*mt*t*t*c2y + t*t*t*y2;
+  const dx = 3*mt*mt*(c1x-x1) + 6*mt*t*(c2x-c1x) + 3*t*t*(x2-c2x);
+  const dy = 3*mt*mt*(c1y-y1) + 6*mt*t*(c2y-c1y) + 3*t*t*(y2-c2y);
+  return { x, y, dx, dy };
+}
+/* folha em forma de gota alongada (nervura central + pecíolo), desenhada em
+   espaço local com a base em (0,0) e a ponta em (0,-L) — assim rotacionamos
+   o grupo inteiro para "colar" o pecíolo na linha do galho */
+function leafGroup(x, y, angleDeg, L, fill, opacity){
+  const W = L * 0.4;
+  const g = document.createElementNS(svgNS, "g");
+  g.setAttribute("transform", `translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${angleDeg.toFixed(1)})`);
+  g.setAttribute("opacity", opacity.toFixed(2));
+
+  const stem = document.createElementNS(svgNS, "path");
+  stem.setAttribute("d", `M0,0 Q ${(W*0.18).toFixed(1)},${(L*0.1).toFixed(1)} 0,${(L*0.22).toFixed(1)}`);
+  stem.setAttribute("fill", "none");
+  stem.setAttribute("stroke", "#3c2a1c");
+  stem.setAttribute("stroke-width", Math.max(1, L*0.07).toFixed(2));
+  stem.setAttribute("stroke-linecap", "round");
+  g.appendChild(stem);
+
+  const blade = document.createElementNS(svgNS, "path");
+  blade.setAttribute("d", `M0,0 C ${-W},${(-L*0.14).toFixed(1)} ${(-W*0.86).toFixed(1)},${(-L*0.66).toFixed(1)} 0,${(-L).toFixed(1)} C ${(W*0.86).toFixed(1)},${(-L*0.66).toFixed(1)} ${W},${(-L*0.14).toFixed(1)} 0,0 Z`);
+  blade.setAttribute("fill", fill);
+  g.appendChild(blade);
+
+  const vein = document.createElementNS(svgNS, "path");
+  vein.setAttribute("d", `M0,${(-L*0.06).toFixed(1)} Q ${(W*0.14).toFixed(1)},${(-L*0.5).toFixed(1)} 0,${(-L*0.93).toFixed(1)}`);
+  vein.setAttribute("fill", "none");
+  vein.setAttribute("stroke", "#25391f");
+  vein.setAttribute("stroke-width", Math.max(0.6, L*0.032).toFixed(2));
+  vein.setAttribute("opacity", "0.5");
+  g.appendChild(vein);
+
+  return g;
+}
+function foliageColor(depthT){
+  const t = Math.max(0, Math.min(1, depthT));
+  if(t < 0.5) return mix("#3f6b46", "#8fc283", t/0.5);
+  return mix("#8fc283", "#e8c96b", (t-0.5)/0.5);
+}
+(function scatterFoliage(){
+  const g = document.createElementNS(svgNS, "g");
+  g.setAttribute("aria-hidden", "true");
+  edgeGeoms.forEach(edge => {
+    if(edge.depth === 1) return; /* tronco e galhos principais ficam limpos */
+    const len = Math.hypot(edge.x2-edge.x1, edge.y2-edge.y1);
+    const seed = hash(edge.id);
+    let count = len > 300 ? 3 : (len > 170 ? 2 : (len > 80 ? 1 : ((seed % 4 === 0) ? 1 : 0)));
+    const edgeHalfW = edgeWidth(edge.depth) / 2;
+    for(let i=0; i<count; i++){
+      const r1 = (hash(edge.id + "a" + i) % 1000) / 1000;
+      const r2 = (hash(edge.id + "b" + i) % 1000) / 1000;
+      const r3 = (hash(edge.id + "c" + i) % 1000) / 1000;
+      const r4 = (hash(edge.id + "d" + i) % 1000) / 1000;
+      const t = 0.26 + r1 * 0.48; /* longe das duas pontas, onde os nomes ficam */
+      const pt = bezierPoint(edge.x1,edge.y1,edge.c1x,edge.c1y,edge.c2x,edge.c2y,edge.x2,edge.y2, t);
+      const mag = Math.hypot(pt.dx, pt.dy) || 1;
+      const perpX = -pt.dy/mag, perpY = pt.dx/mag;
+      const side = (i % 2 === 0) ? 1 : -1;
+      /* o pecíolo nasce bem na borda do galho — "colado" nele — e a folha se abre para fora */
+      const baseOffset = edgeHalfW + 1.5;
+      const anchorX = pt.x + perpX * baseOffset * side;
+      const anchorY = pt.y + perpY * baseOffset * side;
+      const outward = Math.atan2(perpX*side, -perpY*side) * 180/Math.PI;
+      const angle = outward + (r3 - 0.5) * 46;
+      const L = 19 + r4 * 17; /* folhas maiores e mais variadas em tamanho */
+      const depthT = (edge.depth-1) / Math.max(maxDepth-1, 1) + (r1-0.5)*0.18;
+      const opacity = 0.62 + r2*0.3;
+      g.appendChild(leafGroup(anchorX, anchorY, angle, L, foliageColor(depthT), opacity));
+    }
+  });
+  svg.appendChild(g);
+})();
+
+/* placa da raiz (Pedro & Verônica) — criada agora, antes das raízes, para que
+   possamos medir a largura real dela e encaixar as 6 raízes marrons certinho
+   nas suas bordas */
+const plaqueY = treeRoot.y + PLAQUE_OFFSET;
+const rootPlaque = document.createElement("div");
+rootPlaque.className = "root-plaque";
+rootPlaque.style.left = treeRoot.cx + "px";
+rootPlaque.style.top = plaqueY + "px";
+rootPlaque.innerHTML = `
+  <span class="eyebrow">Bisavós · raiz da família</span>
+  <div class="root-couple">
+    <span class="root-person" data-id="root-pedro" data-name="Pedro Rossetti" tabindex="0" role="button">
+      <span class="avatar" id="av-root-pedro" style="background-color:${corAvatar('Pedro Rossetti')}"><span class="init">${iniciais('Pedro Rossetti')}</span></span>
+      <span class="name">Pedro Rossetti</span>
+    </span>
+    <span class="amp">&amp;</span>
+    <span class="root-person" data-id="root-veronica" data-name="Verônica Rossetti" tabindex="0" role="button">
+      <span class="avatar" id="av-root-veronica" style="background-color:${corAvatar('Verônica Rossetti')}"><span class="init">${iniciais('Verônica Rossetti')}</span></span>
+      <span class="name">Verônica Rossetti</span>
+    </span>
+  </div>
+`;
+canvas.appendChild(rootPlaque);
+
+/* raiz da árvore: os 9 galhos convergem num só ponto, que se abre em 6 raízes
+   marrons — cada uma desce e encosta diretamente na borda de cima da placa,
+   como se a placa estivesse assentada sobre as raízes da família */
+(function drawRoots(){
+  const g = document.createElementNS(svgNS, "g");
+  const cx = treeRoot.cx, y0 = treeRoot.y;
+  const plaqueTop = plaqueY - rootPlaque.offsetHeight / 2;
+  const halfW = rootPlaque.offsetWidth / 2;
+  const spread = [-0.86, -0.5, -0.16, 0.16, 0.5, 0.86];
+  spread.forEach((f, i) => {
+    const dx = f * halfW;
+    const endX = cx + dx, endY = plaqueTop + 3;
+    const c1x = cx + dx * 0.25, c1y = y0 + 46;
+    const c2x = endX, c2y = plaqueTop - 62;
+    const path = document.createElementNS(svgNS, "path");
+    path.setAttribute("d", `M ${cx} ${y0} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "#3c2a1c");
+    path.setAttribute("stroke-width", (9 - Math.abs(i - 2.5) * 1.3).toFixed(1));
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("opacity", "0.85");
+    g.appendChild(path);
+  });
+  svg.insertBefore(g, svg.firstChild);
+})();
+
+/* ======================= FOTOS: Firestore (compartilhado em tempo real) =======================
+   Cada pessoa vira um documento na coleção "fotos" (fotos/{id} → {nome, foto, atualizadoEm}).
+   onSnapshot mantém todo mundo que está com a página aberta sincronizado em tempo real:
+   assim que alguém publica uma foto, ela aparece na hora para todo mundo, sem precisar
+   recarregar a página. fotosLocais é só uma memória deste navegador — usada quando o
+   Firebase ainda não está configurado, ou como uma cópia de segurança enquanto a foto
+   ainda não terminou de publicar. */
+let fotosFamilia = {};
+let fotosLocais = {};
+try{
+  const raw = localStorage.getItem("arvore-rossetti-fotos-local");
+  if(raw) fotosLocais = JSON.parse(raw);
+}catch(e){ fotosLocais = {}; }
+
+let db = null;
+let firestorePronto = false;
+
+function configuracaoParecePreenchida(cfg){
+  return !!(cfg && typeof cfg.apiKey === "string" && cfg.apiKey && !cfg.apiKey.startsWith("COLE_AQUI"));
+}
+function mostrarBanner(msg, tipo){
+  const b = document.getElementById("fbBanner");
+  if(!b) return;
+  b.textContent = msg;
+  b.className = "fb-banner show" + (tipo === "erro" ? " erro" : "");
+}
+
+if(configuracaoParecePreenchida(firebaseConfig)){
+  try{
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    firestorePronto = true;
+    onSnapshot(collection(db, "fotos"), (snapshot) => {
+      snapshot.forEach(docSnap => {
+        const dados = docSnap.data();
+        if(dados && typeof dados.foto === "string"){
+          fotosFamilia[docSnap.id] = dados.foto;
+          aplicarFoto(docSnap.id, dados.foto);
+        }
+      });
+    }, (erro) => {
+      console.error("Firestore (leitura):", erro);
+      mostrarBanner("Não consegui carregar as fotos compartilhadas — confira as regras de segurança do Firestore.", "erro");
+    });
+  }catch(e){
+    console.error("Firebase (inicialização):", e);
+    firestorePronto = false;
+    mostrarBanner("Não consegui conectar ao Firebase — confira a configuração no início do arquivo.", "erro");
+  }
+} else {
+  mostrarBanner("Fotos compartilhadas ainda não configuradas nesta página — veja o guia de configuração para ativar.");
+}
+
+async function publicarFoto(id, nome, dataUrl){
+  fotosLocais[id] = dataUrl;
+  try{ localStorage.setItem("arvore-rossetti-fotos-local", JSON.stringify(fotosLocais)); }catch(e){}
+
+  if(!firestorePronto){
+    return { ok:false, motivo:"sem-configuracao" };
+  }
+  try{
+    await setDoc(doc(db, "fotos", id), { nome, foto: dataUrl, atualizadoEm: serverTimestamp() });
+    return { ok:true };
+  }catch(err){
+    console.error("Firestore (escrita):", err);
+    return { ok:false, motivo: (err && err.code) || "erro" };
+  }
+}
+
+/* ======================= RENDER: nós ======================= */
+
+allNodes.forEach(node => {
+  if(node === treeRoot) return;
+  const isLeaf = node.children.length === 0;
+  const el = document.createElement("div");
+  el.className = "node " + classForDepth(node.depth, isLeaf);
+  el.style.left = node.cx + "px";
+  el.style.top = node.y + "px";
+  el.setAttribute("role", "button");
+  el.setAttribute("tabindex", "0");
+  el.dataset.id = node.id;
+  el.dataset.name = node.name;
+
+  let inner = "";
+  if(isLeaf) inner += `<span class="leaf-mark"></span>`;
+  inner += `<span class="avatar" id="av-${node.id}" style="background-color:${corAvatar(node.name)}"><span class="init">${iniciais(node.name)}</span></span>`;
+  const voce = "";
+  inner += `<span class="name">${node.name}${voce}</span>`;
+  el.innerHTML = inner;
+
+  const avEl = el.querySelector(".avatar");
+  const sz = avatarSize(node.depth, isLeaf);
+  avEl.style.width = sz + "px";
+  avEl.style.height = sz + "px";
+
+  canvas.appendChild(el);
+});
+
+Object.keys(fotosLocais).forEach(id => { fotosFamilia[id] = fotosLocais[id]; aplicarFoto(id, fotosLocais[id]); });
+function aplicarFoto(id, dataUrl){
+  const av = document.getElementById("av-" + id);
+  if(av){ av.style.backgroundImage = `url(${dataUrl})`; av.classList.add("has-photo"); }
+  if(editandoId === id && lightbox.classList.contains("open")){
+    lightboxAvatar.style.backgroundImage = `url(${dataUrl})`;
+    lightboxAvatar.classList.add("has-photo");
+    lightboxInitials.style.display = "none";
+  }
+}
+
+/* ======================= PAN & ZOOM ======================= */
+const stage = document.getElementById("stage");
+let scale = 1, tx = 0, ty = 0;
+let userMoved = false;
+
+function applyTransform(){
+  canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+}
+function fitToBox(x0,y0,x1,y1,pad,animated){
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  const bw = (x1-x0) + pad*2, bh = (y1-y0) + pad*2;
+  let s = Math.min(sw/bw, sh/bh);
+  s = Math.max(0.05, Math.min(s, 2.4));
+  const cxm = (x0+x1)/2, cym = (y0+y1)/2;
+  scale = s;
+  tx = sw/2 - cxm*s;
+  ty = sh/2 - cym*s;
+  canvas.classList.toggle("animated", !!animated);
+  applyTransform();
+}
+function fitAll(animated){ fitToBox(0,0,canvasWidth,canvasHeight,40,animated); }
+function initialView(animated){
+  /* a árvore completa é bem mais larga que alta (89 pessoas lado a lado) —
+     no primeiro momento mostramos a copa centrada na raiz, em altura cheia,
+     para que ela realmente pareça uma árvore; "ver árvore inteira" afasta a câmera */
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  let s = (sh - 130) / canvasHeight;
+  s = Math.max(0.4, Math.min(s, 1.15));
+  scale = s;
+  tx = sw/2 - treeRoot.cx*s;
+  ty = sh - 85 - canvasHeight*s;
+  canvas.classList.toggle("animated", !!animated);
+  applyTransform();
+}
+
+/* arrastar com 1 dedo/mouse, ou pinçar com 2 dedos para zoom — no celular
+   os dois gestos precisam conviver, então guardamos todos os ponteiros ativos */
+const activePointers = new Map();
+let dragging = false, startX=0, startY=0, startTx=0, startTy=0, moved=0;
+let pinching = false, lastPinchDist=0, lastPinchMidX=0, lastPinchMidY=0;
+
+function pointersArray(){ return Array.from(activePointers.values()); }
+function distBetween(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function midBetween(a,b){ return { x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; }
+
+function beginSingleDrag(p){
+  dragging = true; pinching = false; moved = 0;
+  startX = p.x; startY = p.y; startTx = tx; startTy = ty;
+  stage.classList.add("dragging");
+  canvas.classList.remove("animated");
+}
+function beginPinch(){
+  const [a,b] = pointersArray();
+  dragging = false; pinching = true;
+  lastPinchDist = distBetween(a,b);
+  const mid = midBetween(a,b);
+  lastPinchMidX = mid.x; lastPinchMidY = mid.y;
+  canvas.classList.remove("animated");
+}
+
+stage.addEventListener("pointerdown", (e) => {
+  if(e.target.closest(".node, .root-person, button, input")) return;
+  try{ stage.setPointerCapture(e.pointerId); }catch(err){ /* ignora — segue sem captura */ }
+  activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if(activePointers.size === 1){
+    beginSingleDrag(activePointers.get(e.pointerId));
+  } else if(activePointers.size === 2){
+    beginPinch();
+  }
+});
+stage.addEventListener("pointermove", (e) => {
+  if(!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+
+  if(pinching && activePointers.size >= 2){
+    const [a,b] = pointersArray();
+    const dist = distBetween(a,b);
+    const mid = midBetween(a,b);
+    if(lastPinchDist > 0){
+      userMoved = true;
+      zoomAt(mid.x, mid.y, dist / lastPinchDist);
+      tx += mid.x - lastPinchMidX;
+      ty += mid.y - lastPinchMidY;
+      applyTransform();
+    }
+    lastPinchDist = dist; lastPinchMidX = mid.x; lastPinchMidY = mid.y;
+    return;
+  }
+  if(dragging){
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    moved = Math.max(moved, Math.abs(dx)+Math.abs(dy));
+    tx = startTx + dx; ty = startTy + dy;
+    applyTransform();
+  }
+});
+function endDrag(e){
+  if(activePointers.has(e.pointerId)) activePointers.delete(e.pointerId);
+  if(moved > 4) userMoved = true;
+  if(activePointers.size === 1){
+    /* ainda sobrou um dedo na tela — retoma o arraste sem pular */
+    beginSingleDrag(pointersArray()[0]);
+  } else if(activePointers.size === 0){
+    dragging = false; pinching = false;
+    stage.classList.remove("dragging");
+  }
+}
+stage.addEventListener("pointerup", endDrag);
+stage.addEventListener("pointercancel", endDrag);
+
+stage.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  userMoved = true;
+  canvas.classList.remove("animated");
+  zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 0.89);
+}, { passive:false });
+
+function zoomAt(clientX, clientY, factor){
+  const rect = stage.getBoundingClientRect();
+  const px = clientX - rect.left, py = clientY - rect.top;
+  const cxCanvas = (px - tx) / scale, cyCanvas = (py - ty) / scale;
+  scale = Math.max(0.05, Math.min(scale * factor, 3));
+  tx = px - cxCanvas * scale;
+  ty = py - cyCanvas * scale;
+  applyTransform();
+}
+document.getElementById("zoomIn").addEventListener("click", () => {
+  userMoved = true; canvas.classList.add("animated");
+  zoomAt(stage.clientWidth/2, stage.clientHeight/2, 1.25);
+});
+document.getElementById("zoomOut").addEventListener("click", () => {
+  userMoved = true; canvas.classList.add("animated");
+  zoomAt(stage.clientWidth/2, stage.clientHeight/2, 0.8);
+});
+document.getElementById("zoomFit").addEventListener("click", () => { userMoved = true; fitAll(true); });
+
+window.addEventListener("resize", () => { if(!userMoved) initialView(false); });
+
+/* estado inicial */
+initialView(false);
+requestAnimationFrame(() => requestAnimationFrame(() => canvas.classList.add("ready")));
+
+/* ======================= BUSCA ======================= */
+const buscaInput = document.getElementById("busca");
+const searchCount = document.getElementById("searchCount");
+buscaInput.addEventListener("input", () => {
+  const termo = buscaInput.value.trim().toLowerCase();
+  const nodeEls = canvas.querySelectorAll(".node");
+  if(!termo){
+    nodeEls.forEach(el => el.classList.remove("dim","match"));
+    searchCount.textContent = "";
+    return;
+  }
+  let count = 0;
+  nodeEls.forEach(el => {
+    const isMatch = el.dataset.name.toLowerCase().includes(termo);
+    el.classList.toggle("match", isMatch);
+    el.classList.toggle("dim", !isMatch);
+    if(isMatch) count++;
+  });
+  searchCount.textContent = count ? `${count} encontrado${count>1?"s":""} · Enter para focar` : "nenhum encontrado";
+});
+buscaInput.addEventListener("keydown", (e) => {
+  if(e.key !== "Enter") return;
+  const matches = canvas.querySelectorAll(".node.match");
+  if(!matches.length) return;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  matches.forEach(el => {
+    const x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+    x0=Math.min(x0,x-60); y0=Math.min(y0,y-40); x1=Math.max(x1,x+60); y1=Math.max(y1,y+40);
+  });
+  userMoved = true;
+  fitToBox(x0,y0,x1,y1,60,true);
+});
+
+/* ======================= LIGHTBOX (ver / adicionar foto) ======================= */
+const lightbox = document.getElementById("lightbox");
+const lightboxAvatar = document.getElementById("lightboxAvatar");
+const lightboxInitials = document.getElementById("lightboxInitials");
+const lightboxName = document.getElementById("lightboxName");
+const lightboxClose = document.getElementById("lightboxClose");
+const lightboxUpload = document.getElementById("lightboxUpload");
+const lightboxAscendencia = document.getElementById("lightboxAscendencia");
+const lightboxStatus = document.getElementById("lightboxStatus");
+const fileInput = document.getElementById("fileInput");
+
+function mostrarStatusFoto(msg, tipo){
+  lightboxStatus.textContent = msg;
+  lightboxStatus.classList.toggle("warn", tipo === "warn");
+  lightboxStatus.classList.add("show");
+}
+function limparStatusFoto(){
+  lightboxStatus.textContent = "";
+  lightboxStatus.classList.remove("show", "warn");
+}
+
+function abrirLightbox(id, nome){
+  editandoId = id;
+  editandoNome = nome;
+  lightboxName.textContent = nome;
+  limparStatusFoto();
+  const foto = fotosFamilia[id];
+  if(foto){
+    lightboxAvatar.style.backgroundImage = `url(${foto})`;
+    lightboxAvatar.classList.add("has-photo");
+    lightboxInitials.style.display = "none";
+  } else {
+    lightboxAvatar.style.backgroundImage = "none";
+    lightboxAvatar.classList.remove("has-photo");
+    lightboxAvatar.style.backgroundColor = corAvatar(nome);
+    lightboxInitials.textContent = iniciais(nome);
+    lightboxInitials.style.display = "flex";
+  }
+  const node = nodeById[id];
+  const asc = node ? ascendenciaDe(node) : null;
+  if(asc){
+    lightboxAscendencia.innerHTML = asc;
+    lightboxAscendencia.classList.remove("hide");
+  } else {
+    lightboxAscendencia.innerHTML = "";
+    lightboxAscendencia.classList.add("hide");
+  }
+  lightbox.classList.add("open");
+}
+function fecharLightbox(){ lightbox.classList.remove("open"); }
+lightboxClose.addEventListener("click", fecharLightbox);
+lightbox.addEventListener("click", (e) => { if(e.target === lightbox) fecharLightbox(); });
+document.addEventListener("keydown", (e) => { if(e.key === "Escape") fecharLightbox(); });
+lightboxUpload.addEventListener("click", () => fileInput.click());
+
+canvas.addEventListener("click", (e) => {
+  const row = e.target.closest(".node, .root-person");
+  if(!row) return;
+  abrirLightbox(row.dataset.id, row.dataset.name);
+});
+canvas.addEventListener("keydown", (e) => {
+  if(e.key !== "Enter" && e.key !== " ") return;
+  const row = e.target.closest(".node, .root-person");
+  if(!row) return;
+  e.preventDefault();
+  abrirLightbox(row.dataset.id, row.dataset.name);
+});
+
+function redimensionarImagem(file, maxLado, qualidade){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxLado){ h = Math.round(h*maxLado/w); w = maxLado; } }
+        else { if(h > maxLado){ w = Math.round(w*maxLado/h); h = maxLado; } }
+        const canvasEl = document.createElement("canvas");
+        canvasEl.width = w; canvasEl.height = h;
+        canvasEl.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvasEl.toDataURL("image/jpeg", qualidade));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+/* o Firestore limita cada documento a ~1 MiB — comprimimos com folga generosa
+   (bem abaixo disso) e, no caso raro de uma imagem muito "pesada" mesmo depois
+   de reduzida, tentamos de novo menor/mais comprimida antes de desistir */
+const LIMITE_BASE64 = 700000;
+async function prepararFotoParaEnvio(file){
+  const tentativas = [ [260, 0.82], [200, 0.72], [150, 0.6] ];
+  let ultima = null;
+  for(const [maxLado, qualidade] of tentativas){
+    ultima = await redimensionarImagem(file, maxLado, qualidade);
+    if(ultima.length <= LIMITE_BASE64) return ultima;
+  }
+  throw new Error("imagem-grande-demais");
+}
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files[0];
+  fileInput.value = "";
+  if(!file || !editandoId) return;
+  const id = editandoId;
+  const nome = editandoNome;
+  try{
+    const dataUrl = await prepararFotoParaEnvio(file);
+    fotosFamilia[id] = dataUrl;
+    aplicarFoto(id, dataUrl);
+
+    lightboxUpload.disabled = true;
+    mostrarStatusFoto(firestorePronto ? "Publicando para todo mundo…" : "Salvando…");
+    const resultado = await publicarFoto(id, nome, dataUrl);
+    lightboxUpload.disabled = false;
+
+    if(resultado.ok){
+      mostrarStatusFoto("✓ Publicada — todo mundo que abrir este link já vê essa foto.");
+    } else if(resultado.motivo === "sem-configuracao"){
+      mostrarStatusFoto("Foto salva só neste navegador (o Firebase ainda não está configurado nesta página).", "warn");
+    } else if(resultado.motivo === "permission-denied"){
+      mostrarStatusFoto("Foto salva só neste navegador — as regras de segurança do Firestore recusaram a publicação.", "warn");
+    } else {
+      mostrarStatusFoto("Não consegui publicar agora — a foto ficou só neste navegador. Tente de novo em instantes.", "warn");
+    }
+  }catch(e){
+    console.error(e);
+    mostrarStatusFoto("Não consegui usar essa imagem — tente outra foto, de preferência menor.", "warn");
+  }
+});
+
+/* ======================= poeira de luz (decorativo) ======================= */
+(function motes(){
+  const wrap = document.getElementById("motes");
+  const n = 7;
+  for(let i=0;i<n;i++){
+    const m = document.createElement("span");
+    m.className = "mote";
+    m.style.left = (8 + Math.random()*84) + "vw";
+    m.style.top = (30 + Math.random()*60) + "vh";
+    m.style.animationDelay = (Math.random()*20) + "s";
+    m.style.animationDuration = (20 + Math.random()*14) + "s";
+    wrap.appendChild(m);
+  }
+})();
+</script>
