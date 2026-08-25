@@ -131,6 +131,58 @@
     background:rgba(217,164,65,0.06);
     white-space:nowrap;
   }
+  .photo-update-alert{
+    position:fixed; top:78px; left:50%; z-index:30;
+    width:min(470px, calc(100vw - 28px));
+    transform:translateX(-50%);
+    display:flex; align-items:flex-start; gap:12px;
+    padding:14px 42px 14px 14px;
+    color:var(--parchment);
+    background:rgba(23,39,24,0.96);
+    border:1px solid rgba(240,194,106,0.72);
+    border-radius:10px;
+    box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 4px rgba(217,164,65,0.08);
+    animation:photoAlertPulse 2.8s ease-in-out infinite;
+  }
+  .photo-update-alert[hidden]{ display:none; }
+  .photo-update-alert .alert-icon{
+    flex:0 0 30px; width:30px; height:30px;
+    display:grid; place-items:center;
+    border-radius:50%;
+    color:#211707; background:var(--gold-bright);
+    font-size:16px;
+    animation:photoAlertIconPulse 2.8s ease-in-out infinite;
+  }
+  .photo-update-alert strong{
+    display:block; margin-bottom:3px;
+    font-family:'Manrope', sans-serif; font-size:12px; letter-spacing:0.04em;
+    text-transform:uppercase; color:var(--gold-bright);
+  }
+  .photo-update-alert p{ margin:0; font-size:15px; line-height:1.3; }
+  .photo-update-alert time{
+    display:block; margin-top:5px;
+    font-family:'Manrope', sans-serif; font-size:10px; letter-spacing:0.05em;
+    color:var(--ink-soft); text-transform:uppercase;
+  }
+  .photo-update-alert .alert-close{
+    position:absolute; top:7px; right:9px;
+    width:27px; height:27px; padding:0;
+    border:0; border-radius:6px;
+    color:var(--ink-soft); background:transparent;
+    font-size:20px; line-height:1; cursor:pointer;
+  }
+  .photo-update-alert .alert-close:hover,
+  .photo-update-alert .alert-close:focus-visible{
+    color:var(--parchment); background:rgba(240,194,106,0.12); outline:none;
+  }
+  @keyframes photoAlertPulse{
+    0%,100%{ box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 4px rgba(217,164,65,0.08); }
+    50%{ box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 7px rgba(217,164,65,0.2); }
+  }
+  @keyframes photoAlertIconPulse{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.08); }
+  }
   .hint{
     position:fixed; right:22px; bottom:18px; z-index:20;
     font-family:'Cormorant Garamond', serif; font-style:italic; font-size:13px;
@@ -334,6 +386,7 @@
 
   @media (max-width: 640px){
     .hint{ display:none; }
+    .photo-update-alert{ top:116px; }
     .toolbar{ gap:8px; padding:10px 12px; }
     .brand .mark{ font-size:16px; }
     .search-wrap{ flex:1 1 100%; max-width:none; order:3; }
@@ -351,6 +404,16 @@
 
 <div class="atmosphere"><div class="grain"></div></div>
 <div class="motes" id="motes"></div>
+
+<aside class="photo-update-alert" id="photoUpdateAlert" role="status" aria-labelledby="photoUpdateTitle">
+  <span class="alert-icon" aria-hidden="true">📷</span>
+  <div>
+    <strong id="photoUpdateTitle">Fotos com melhor qualidade</strong>
+    <p>Atualizamos o tratamento das fotos da família. Quem já adicionou uma foto antes desta atualização pode enviá-la novamente para aproveitar a nova qualidade.</p>
+    <time datetime="2026-08-25T19:39:00">Melhoria publicada em 25/08/2026 às 19:39</time>
+  </div>
+  <button class="alert-close" id="photoUpdateClose" type="button" aria-label="Fechar aviso">&times;</button>
+</aside>
 
 <header class="toolbar">
   <div class="brand">
@@ -1140,6 +1203,12 @@ const lightboxUpload = document.getElementById("lightboxUpload");
 const lightboxAscendencia = document.getElementById("lightboxAscendencia");
 const lightboxStatus = document.getElementById("lightboxStatus");
 const fileInput = document.getElementById("fileInput");
+const photoUpdateAlert = document.getElementById("photoUpdateAlert");
+const photoUpdateClose = document.getElementById("photoUpdateClose");
+
+photoUpdateClose.addEventListener("click", () => {
+  photoUpdateAlert.hidden = true;
+});
 
 function mostrarStatusFoto(msg, tipo){
   lightboxStatus.textContent = msg;
