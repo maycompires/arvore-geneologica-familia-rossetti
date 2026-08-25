@@ -139,9 +139,9 @@
     padding:14px 42px 14px 14px;
     color:var(--parchment);
     background:rgba(23,39,24,0.96);
-    border:1px solid rgba(240,194,106,0.72);
+    border:1px solid rgba(235,92,92,0.9);
     border-radius:10px;
-    box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 4px rgba(217,164,65,0.08);
+    box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 4px rgba(235,92,92,0.12);
     animation:photoAlertPulse 2.8s ease-in-out infinite;
   }
   .photo-update-alert[hidden]{ display:none; }
@@ -176,8 +176,8 @@
     color:var(--parchment); background:rgba(240,194,106,0.12); outline:none;
   }
   @keyframes photoAlertPulse{
-    0%,100%{ box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 4px rgba(217,164,65,0.08); }
-    50%{ box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 7px rgba(217,164,65,0.2); }
+    0%,100%{ box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 4px rgba(235,92,92,0.12); }
+    50%{ box-shadow:0 12px 34px rgba(0,0,0,0.42), 0 0 0 7px rgba(235,92,92,0.34); }
   }
   @keyframes photoAlertIconPulse{
     0%,100%{ transform:scale(1); }
@@ -408,8 +408,8 @@
 <aside class="photo-update-alert" id="photoUpdateAlert" role="status" aria-labelledby="photoUpdateTitle">
   <span class="alert-icon" aria-hidden="true">📷</span>
   <div>
-    <strong id="photoUpdateTitle">Fotos com melhor qualidade</strong>
-    <p>Atualizamos o tratamento das fotos da família. Quem já adicionou uma foto antes desta atualização pode enviá-la novamente para aproveitar a nova qualidade.</p>
+    <strong id="photoUpdateTitle">Melhoria nas fotos</strong>
+    <p>Fotos antigas? Envie novamente para aproveitar a melhor qualidade.</p>
     <time datetime="2026-08-25T19:39:00">Melhoria publicada em 25/08/2026 às 19:39</time>
   </div>
   <button class="alert-close" id="photoUpdateClose" type="button" aria-label="Fechar aviso">&times;</button>
