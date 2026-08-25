@@ -1224,7 +1224,7 @@ function redimensionarImagem(file, maxLado, qualidade){
    de reduzida, tentamos de novo menor/mais comprimida antes de desistir */
 const LIMITE_BASE64 = 700000;
 async function prepararFotoParaEnvio(file){
-  const tentativas = [ [260, 0.82], [200, 0.72], [150, 0.6] ];
+  const tentativas = [ [700, 0.86], [550, 0.78], [400, 0.68] ];
   let ultima = null;
   for(const [maxLado, qualidade] of tentativas){
     ultima = await redimensionarImagem(file, maxLado, qualidade);
