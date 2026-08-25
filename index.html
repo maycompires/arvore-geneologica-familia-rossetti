@@ -409,7 +409,7 @@
   <span class="alert-icon" aria-hidden="true">📷</span>
   <div>
     <strong id="photoUpdateTitle">Melhoria nas fotos</strong>
-    <p>Fotos antigas? Envie novamente para aproveitar a melhor qualidade.</p>
+    <p>Fotos ficaram em baixa resolução? envie novamente para aproveitar melhor qualidade da imagem.</p>
     <time datetime="2026-08-25T19:39:00">Melhoria publicada em 25/08/2026 às 19:39</time>
   </div>
   <button class="alert-close" id="photoUpdateClose" type="button" aria-label="Fechar aviso">&times;</button>
@@ -1206,9 +1206,11 @@ const fileInput = document.getElementById("fileInput");
 const photoUpdateAlert = document.getElementById("photoUpdateAlert");
 const photoUpdateClose = document.getElementById("photoUpdateClose");
 
-photoUpdateClose.addEventListener("click", () => {
+function fecharAvisoFotos(){
   photoUpdateAlert.hidden = true;
-});
+}
+photoUpdateClose.addEventListener("click", fecharAvisoFotos);
+setTimeout(fecharAvisoFotos, 15000);
 
 function mostrarStatusFoto(msg, tipo){
   lightboxStatus.textContent = msg;
