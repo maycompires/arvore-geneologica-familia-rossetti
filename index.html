@@ -221,6 +221,13 @@
     transition:background .2s, border-color .2s, transform .15s;
     white-space:nowrap;
   }
+  .node.magnified{
+    z-index:12;
+    transform:translate(-50%,-50%) scale(1.42);
+    background:rgba(217,164,65,0.16);
+    border-color:var(--panel-line);
+    box-shadow:0 0 0 4px rgba(217,164,65,0.13), 0 8px 18px rgba(0,0,0,0.28);
+  }
   .node:hover, .node:focus-visible{
     background:rgba(217,164,65,0.12);
     border-color:var(--panel-line);
@@ -295,6 +302,12 @@
   .root-person{
     display:flex; align-items:center; gap:9px; cursor:pointer;
     padding:4px 8px 4px 4px; border-radius:20px; transition:background .2s;
+  }
+  .root-person.magnified{
+    position:relative; z-index:12;
+    transform:scale(1.28); transform-origin:center;
+    background:rgba(217,164,65,0.16);
+    box-shadow:0 0 0 4px rgba(217,164,65,0.13), 0 8px 18px rgba(0,0,0,0.28);
   }
   .root-person:hover, .root-person:focus-visible{ background:rgba(217,164,65,0.14); outline:none; }
   .root-person .avatar{ width:46px; height:46px; font-size:16px; }
@@ -1079,6 +1092,21 @@ function beginPinch(){
   canvas.classList.remove("animated");
 }
 
+let magnifiedElement = null;
+function atualizarLupa(clientX, clientY){
+  const sobPonteiro = document.elementFromPoint(clientX, clientY);
+  const alvo = sobPonteiro && sobPonteiro.closest ? sobPonteiro.closest(".node, .root-person") : null;
+  const alvoValido = alvo && canvas.contains(alvo) ? alvo : null;
+  if(magnifiedElement === alvoValido) return;
+  if(magnifiedElement) magnifiedElement.classList.remove("magnified");
+  magnifiedElement = alvoValido;
+  if(magnifiedElement) magnifiedElement.classList.add("magnified");
+}
+function limparLupa(){
+  if(magnifiedElement) magnifiedElement.classList.remove("magnified");
+  magnifiedElement = null;
+}
+
 stage.addEventListener("pointerdown", (e) => {
   if(e.target.closest(".node, .root-person, button, input")) return;
   try{ stage.setPointerCapture(e.pointerId); }catch(err){ /* ignora — segue sem captura */ }
@@ -1090,6 +1118,7 @@ stage.addEventListener("pointerdown", (e) => {
   }
 });
 stage.addEventListener("pointermove", (e) => {
+  atualizarLupa(e.clientX, e.clientY);
   if(!activePointers.has(e.pointerId)) return;
   activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
 
@@ -1123,10 +1152,14 @@ function endDrag(e){
   } else if(activePointers.size === 0){
     dragging = false; pinching = false;
     stage.classList.remove("dragging");
+    limparLupa();
   }
 }
 stage.addEventListener("pointerup", endDrag);
 stage.addEventListener("pointercancel", endDrag);
+stage.addEventListener("pointerleave", () => {
+  if(activePointers.size === 0) limparLupa();
+});
 
 stage.addEventListener("wheel", (e) => {
   e.preventDefault();
