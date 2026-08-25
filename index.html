@@ -131,17 +131,6 @@
     background:rgba(217,164,65,0.06);
     white-space:nowrap;
   }
-  .legend{
-    position:fixed; left:22px; bottom:18px; z-index:20;
-    font-family:'Manrope', sans-serif; font-size:11.5px;
-    color:var(--ink-soft);
-    background:var(--panel);
-    border:1px solid var(--panel-line);
-    padding:8px 14px; border-radius:9px;
-    max-width:280px; line-height:1.5;
-    backdrop-filter:blur(8px);
-  }
-  .legend b{ color:var(--gold-bright); font-weight:600; }
   .hint{
     position:fixed; right:22px; bottom:18px; z-index:20;
     font-family:'Cormorant Garamond', serif; font-style:italic; font-size:13px;
@@ -345,7 +334,6 @@
 
   @media (max-width: 640px){
     .hint{ display:none; }
-    .legend{ left:14px; right:14px; max-width:none; font-size:11px; padding:7px 12px; }
     .toolbar{ gap:8px; padding:10px 12px; }
     .brand .mark{ font-size:16px; }
     .search-wrap{ flex:1 1 100%; max-width:none; order:3; }
@@ -382,7 +370,6 @@
   <p class="fb-banner" id="fbBanner"></p>
 </header>
 
-<div class="legend"><b>🌳 Como ler:</b> a raiz fica na base do tronco; cada geração nasce um nível mais alto na copa. <span class="leaf-mark" style="display:inline-block;vertical-align:middle;"></span> marca quem ainda não tem descendência registrada.</div>
 <div class="hint">arraste para mover · roda do mouse para zoom<br>toque em qualquer nome para ver ou adicionar uma foto</div>
 
 <main class="stage" id="stage">
@@ -819,7 +806,7 @@ rootPlaque.className = "root-plaque";
 rootPlaque.style.left = treeRoot.cx + "px";
 rootPlaque.style.top = plaqueY + "px";
 rootPlaque.innerHTML = `
-  <span class="eyebrow">Bisavós · raiz da família</span>
+  <span class="eyebrow">raiz da família</span>
   <div class="root-couple">
     <span class="root-person" data-id="root-pedro" data-name="Pedro Rossetti" tabindex="0" role="button">
       <span class="avatar" id="av-root-pedro" style="background-color:${corAvatar('Pedro Rossetti')}"><span class="init">${iniciais('Pedro Rossetti')}</span></span>
