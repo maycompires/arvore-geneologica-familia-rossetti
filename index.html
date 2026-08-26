@@ -1184,6 +1184,7 @@ function atualizarBusca(){
   if(!termo){
     nodeEls.forEach(el => el.classList.remove("dim","match"));
     searchCount.textContent = "";
+    initialView(true);
     return;
   }
   let count = 0;
