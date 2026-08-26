@@ -70,11 +70,12 @@
     position:fixed; top:0; left:0; right:0; z-index:20;
     display:flex; align-items:center; gap:18px;
     padding:12px max(22px, env(safe-area-inset-right)) 12px max(22px, env(safe-area-inset-left));
-    background:var(--panel);
+    background:#0f1e13;
     border-bottom:1px solid var(--panel-line);
     backdrop-filter:blur(10px);
     flex-wrap:wrap;
     box-shadow:0 8px 24px rgba(0,0,0,0.16);
+    transition:transform .25s ease;
   }
   .brand{ display:flex; flex-direction:column; gap:1px; margin-right:6px; }
   .brand .mark{
@@ -265,6 +266,11 @@
   }
   .root-couple{ display:flex; align-items:center; gap:14px; }
   .root-couple .amp{ color:var(--gold); font-family:'Cormorant Garamond', serif; font-style:italic; font-size:19px; }
+  .root-stats{
+    font-family:'Manrope', sans-serif; font-size:10px; letter-spacing:0.04em;
+    color:var(--gold-bright); opacity:0.82; text-align:center;
+    padding-top:9px; border-top:1px solid rgba(217,164,65,0.2);
+  }
   .root-person{
     display:flex; align-items:center; gap:9px; cursor:pointer;
     padding:4px 8px 4px 4px; border-radius:20px; transition:background .2s;
@@ -373,18 +379,19 @@
   @media (max-width: 640px){
     .hint{ display:none; }
     .toolbar{
-      display:grid; grid-template-columns:1fr;
+      display:grid; grid-template-columns:minmax(0, 1fr) minmax(150px, 1fr);
       gap:10px; padding:calc(10px + env(safe-area-inset-top)) 12px 12px;
-      backdrop-filter:none;
+      backdrop-filter:none; transition:top .25s ease;
     }
-    .brand{ grid-column:1; grid-row:1; min-width:0; align-items:center; text-align:center; }
+    .toolbar.mobile-hidden{ top:-100%; transform:none; pointer-events:none; }
+    .brand{ grid-column:1; grid-row:1; min-width:0; align-items:flex-start; text-align:left; }
     .brand .mark{ font-size:16px; overflow:hidden; text-overflow:ellipsis; }
     .brand .sub{ font-size:9px; }
-    .search-wrap{ grid-column:1 / -1; grid-row:2; max-width:none; width:100%; }
+    .search-wrap{ grid-column:2; grid-row:1; max-width:none; width:100%; }
     .search-wrap::before{ display:none; }
     .search-wrap input{ text-align:center; padding-left:14px; }
     .search-count{ display:none; }
-    .stats-pill{ grid-column:1 / -1; grid-row:3; justify-self:center; text-align:center; font-size:10px; padding:5px 9px; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+    .stats-pill{ display:none; }
     .zoom-controls{
       position:fixed; left:50%; bottom:max(12px, env(safe-area-inset-bottom)); z-index:25;
       transform:translateX(-50%); display:flex; align-items:center; justify-content:center;
@@ -396,9 +403,14 @@
     .zoom-controls button{ width:40px; height:40px; font-size:18px; }
     .zoom-controls .fit-btn{ display:none; }
     .zoom-label{ display:block; padding:0 3px; color:var(--ink-soft); font-family:'Manrope', sans-serif; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; }
-    .fb-banner{ grid-column:1 / -1; }
-    .lightbox{ padding:16px; align-items:flex-end; }
-    .lightbox-card{ width:100%; max-width:430px; padding:34px 20px 24px; border-radius:18px 18px 10px 10px; }
+    .fb-banner{ grid-column:1 / -1; grid-row:2; }
+    .lightbox{ padding:20px; align-items:center; }
+    .lightbox-card{
+      width:100%; max-width:410px; height:calc(100% - 40px); max-height:none;
+      padding:calc(42px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+      border-radius:12px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+    }
     .lightbox-avatar-ring{ width:142px; height:142px; margin-bottom:14px; }
     .lightbox-name{ margin-bottom:16px; }
     .lightbox-upload{ width:100%; min-height:44px; }
@@ -423,7 +435,6 @@
     <button class="search-clear" id="limparBusca" type="button" aria-label="Limpar busca" title="Limpar busca">&times;</button>
   </div>
   <span class="search-count" id="searchCount"></span>
-  <span class="stats-pill" id="stats">carregando…</span>
   <div class="zoom-controls">
     <button id="zoomOut" aria-label="Diminuir zoom">–</button>
     <span class="zoom-label">zoom</span>
@@ -736,7 +747,6 @@ allNodes.forEach(n => { nodeById[n.id] = n; });
 
 let totalPessoas = 2; // Pedro + Verônica
 allNodes.forEach(n => { if(n !== treeRoot) totalPessoas++; });
-document.getElementById("stats").textContent = `${totalPessoas} pessoas · 9 ramos · ${maxDepth} gerações`;
 
 /* ======================= RENDER: SVG (galhos) ======================= */
 const canvas = document.getElementById("canvas");
@@ -881,6 +891,7 @@ rootPlaque.innerHTML = `
       <span class="name">Verônica Rossetti</span>
     </span>
   </div>
+  <span class="root-stats">${totalPessoas} pessoas · 9 ramos · ${maxDepth} gerações</span>
 `;
 canvas.appendChild(rootPlaque);
 
@@ -1055,6 +1066,15 @@ function initialView(animated){
   applyTransform();
 }
 
+let toolbarRevealTimer = null;
+function agendarRetornoCabecalho(){
+  if(!window.matchMedia("(max-width: 640px)").matches) return;
+  clearTimeout(toolbarRevealTimer);
+  toolbarRevealTimer = window.setTimeout(() => {
+    document.querySelector(".toolbar").classList.remove("mobile-hidden");
+  }, 1800);
+}
+
 /* arrastar com 1 dedo/mouse, ou pinçar com 2 dedos para zoom — no celular
    os dois gestos precisam conviver, então guardamos todos os ponteiros ativos */
 const activePointers = new Map();
@@ -1157,6 +1177,10 @@ stage.addEventListener("wheel", (e) => {
 }, { passive:false });
 
 function zoomAt(clientX, clientY, factor){
+  if(window.matchMedia("(max-width: 640px)").matches){
+    document.querySelector(".toolbar").classList.add("mobile-hidden");
+    agendarRetornoCabecalho();
+  }
   const rect = stage.getBoundingClientRect();
   const px = clientX - rect.left, py = clientY - rect.top;
   const cxCanvas = (px - tx) / scale, cyCanvas = (py - ty) / scale;
