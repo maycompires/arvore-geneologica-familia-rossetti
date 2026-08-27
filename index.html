@@ -340,10 +340,11 @@
   .lightbox-upload:hover{ background:rgba(217,164,65,0.2); border-color:var(--gold); }
   .lightbox-upload:focus-visible{ outline:2px solid var(--gold-bright); outline-offset:3px; }
   .lightbox-upload:disabled{ opacity:0.55; cursor:default; }
+  .lightbox-upload-options{ display:flex; gap:10px; justify-content:center; }
   .lightbox-ascendencia{
-    margin:16px 0 0; padding:12px 18px 0; border-top:1px solid var(--panel-line);
+    width:100%; margin:16px auto 0; padding:12px 18px 0; border-top:1px solid var(--panel-line);
     font-family:'Cormorant Garamond', serif; font-style:italic; font-size:15.5px;
-    line-height:1.45; color:var(--ink-soft); opacity:0.92; max-width:36ch;
+    line-height:1.45; color:var(--ink-soft); opacity:0.92; max-width:36ch; text-align:center;
   }
   .lightbox-ascendencia b{
     font-style:normal; font-weight:600; color:var(--gold-bright);
@@ -413,6 +414,7 @@
     }
     .lightbox-avatar-ring{ width:142px; height:142px; margin-bottom:14px; }
     .lightbox-name{ margin-bottom:16px; }
+    .lightbox-upload-options{ width:100%; flex-direction:column; }
     .lightbox-upload{ width:100%; min-height:44px; }
   }
   @media (pointer: coarse){
@@ -459,12 +461,16 @@
       </div>
     </div>
     <p class="lightbox-name" id="lightboxName"></p>
-    <button class="lightbox-upload" id="lightboxUpload">📷 Adicionar / trocar foto</button>
+    <div class="lightbox-upload-options">
+      <button class="lightbox-upload" id="lightboxCamera" type="button">📷 Tirar uma foto</button>
+      <button class="lightbox-upload" id="lightboxGallery" type="button">🖼 Escolher da galeria</button>
+    </div>
     <p class="lightbox-ascendencia" id="lightboxAscendencia"></p>
     <p class="lightbox-status" id="lightboxStatus" aria-live="polite"></p>
   </div>
 </div>
-<input type="file" id="fileInput" accept="image/*" class="sr-only">
+<input type="file" id="cameraInput" accept="image/*" capture="environment" class="sr-only">
+<input type="file" id="galleryInput" accept="image/*" class="sr-only">
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
@@ -1272,10 +1278,13 @@ const lightboxAvatar = document.getElementById("lightboxAvatar");
 const lightboxInitials = document.getElementById("lightboxInitials");
 const lightboxName = document.getElementById("lightboxName");
 const lightboxClose = document.getElementById("lightboxClose");
-const lightboxUpload = document.getElementById("lightboxUpload");
+const lightboxCamera = document.getElementById("lightboxCamera");
+const lightboxGallery = document.getElementById("lightboxGallery");
 const lightboxAscendencia = document.getElementById("lightboxAscendencia");
 const lightboxStatus = document.getElementById("lightboxStatus");
-const fileInput = document.getElementById("fileInput");
+const cameraInput = document.getElementById("cameraInput");
+const galleryInput = document.getElementById("galleryInput");
+const uploadButtons = [lightboxCamera, lightboxGallery];
 
 function mostrarStatusFoto(msg, tipo){
   lightboxStatus.textContent = msg;
@@ -1319,7 +1328,8 @@ function fecharLightbox(){ lightbox.classList.remove("open"); }
 lightboxClose.addEventListener("click", fecharLightbox);
 lightbox.addEventListener("click", (e) => { if(e.target === lightbox) fecharLightbox(); });
 document.addEventListener("keydown", (e) => { if(e.key === "Escape") fecharLightbox(); });
-lightboxUpload.addEventListener("click", () => fileInput.click());
+lightboxCamera.addEventListener("click", () => cameraInput.click());
+lightboxGallery.addEventListener("click", () => galleryInput.click());
 
 canvas.addEventListener("click", (e) => {
   const row = e.target.closest(".node, .root-person");
@@ -1368,9 +1378,7 @@ async function prepararFotoParaEnvio(file){
   }
   throw new Error("imagem-grande-demais");
 }
-fileInput.addEventListener("change", async () => {
-  const file = fileInput.files[0];
-  fileInput.value = "";
+async function processarFotoSelecionada(file){
   if(!file || !editandoId) return;
   const id = editandoId;
   const nome = editandoNome;
@@ -1379,10 +1387,10 @@ fileInput.addEventListener("change", async () => {
     fotosFamilia[id] = dataUrl;
     aplicarFoto(id, dataUrl);
 
-    lightboxUpload.disabled = true;
+    uploadButtons.forEach(button => { button.disabled = true; });
     mostrarStatusFoto(firestorePronto ? "Publicando para todo mundo…" : "Salvando…");
     const resultado = await publicarFoto(id, nome, dataUrl);
-    lightboxUpload.disabled = false;
+    uploadButtons.forEach(button => { button.disabled = false; });
 
     if(resultado.ok){
       mostrarStatusFoto("✓ Publicada — todo mundo que abrir este link já vê essa foto.");
@@ -1397,6 +1405,16 @@ fileInput.addEventListener("change", async () => {
     console.error(e);
     mostrarStatusFoto("Não consegui usar essa imagem — tente outra foto, de preferência menor.", "warn");
   }
+}
+cameraInput.addEventListener("change", () => {
+  const file = cameraInput.files[0];
+  cameraInput.value = "";
+  processarFotoSelecionada(file);
+});
+galleryInput.addEventListener("change", () => {
+  const file = galleryInput.files[0];
+  galleryInput.value = "";
+  processarFotoSelecionada(file);
 });
 
 /* ======================= poeira de luz (decorativo) ======================= */
